@@ -15,7 +15,7 @@
     let activeCardFilters = new Set();
 
     let pendingAccountFile = null;
-    let pendingNewsFile = null;
+    let pendingNewsFiles = [];
 
     const ZERO_EXCLUSION_COLUMNS = [
         'Profit Above Buffer',
@@ -92,28 +92,28 @@
             }
         });
 
-        // News file handlers
+        // News file handlers (multiple)
         newsUploadArea.addEventListener('click', () => newsFileInput.click());
         newsUploadArea.addEventListener('dragover', (e) => { e.preventDefault(); newsUploadArea.classList.add('dragover'); });
         newsUploadArea.addEventListener('dragleave', () => newsUploadArea.classList.remove('dragover'));
         newsUploadArea.addEventListener('drop', (e) => {
             e.preventDefault();
             newsUploadArea.classList.remove('dragover');
-            const file = e.dataTransfer.files[0];
-            if (file && file.name.endsWith('.csv')) {
-                pendingNewsFile = file;
+            const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.csv'));
+            if (files.length > 0) {
+                pendingNewsFiles = files;
                 newsUploadArea.classList.add('file-loaded');
-                newsStatus.textContent = file.name;
+                newsStatus.textContent = files.length === 1 ? files[0].name : `${files.length} files selected`;
             } else {
-                showToast('Please upload a valid CSV file', 'error');
+                showToast('Please upload valid CSV files', 'error');
             }
         });
         newsFileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                pendingNewsFile = file;
+            const files = Array.from(e.target.files);
+            if (files.length > 0) {
+                pendingNewsFiles = files;
                 newsUploadArea.classList.add('file-loaded');
-                newsStatus.textContent = file.name;
+                newsStatus.textContent = files.length === 1 ? files[0].name : `${files.length} files selected`;
             }
         });
 
@@ -133,7 +133,7 @@
             headers = [];
             newsViolationMap = {};
             pendingAccountFile = null;
-            pendingNewsFile = null;
+            pendingNewsFiles = [];
             dateFilter = null;
             searchTerm = '';
             activeCardFilters.clear();
@@ -167,9 +167,12 @@
         });
 
         const accountPromise = parseCSV(pendingAccountFile);
-        const newsPromise = pendingNewsFile ? parseCSV(pendingNewsFile) : Promise.resolve(null);
+        const newsPromises = pendingNewsFiles.length > 0
+            ? Promise.all(pendingNewsFiles.map(f => parseCSV(f)))
+            : Promise.resolve(null);
 
-        Promise.all([accountPromise, newsPromise]).then(([accountData, newsData]) => {
+        Promise.all([accountPromise, newsPromises]).then(([accountData, newsDataArrays]) => {
+            const newsData = newsDataArrays ? newsDataArrays.flat() : null;
             if (!accountData || accountData.length === 0) {
                 showLoading(false);
                 showToast('No data found in account CSV', 'error');
@@ -230,7 +233,8 @@
 
             showLoading(false);
             showDashboard();
-            const newsMsg = newsData ? ` | ${Object.keys(newsViolationMap).length} accounts with news violations` : '';
+            const newsFileCount = pendingNewsFiles.length;
+            const newsMsg = newsData ? ` | ${newsFileCount} news file${newsFileCount > 1 ? 's' : ''}, ${Object.keys(newsViolationMap).length} accounts with violations` : '';
             showToast(`Loaded ${allData.length} accounts${newsMsg}`, 'success');
         }).catch(() => {
             showLoading(false);

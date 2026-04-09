@@ -57,10 +57,10 @@
                         </svg>
                     </div>
                     <h2>News Events CSV</h2>
-                    <p>Upload the news event violations file <span class="optional-tag">(Optional)</span></p>
-                    <input type="file" id="newsFileInput" accept=".csv" hidden>
+                    <p>Upload news event files (multiple days) <span class="optional-tag">(Optional)</span></p>
+                    <input type="file" id="newsFileInput" accept=".csv" multiple hidden>
                     <button class="btn btn-outline" onclick="document.getElementById('newsFileInput').click()">
-                        Choose File
+                        Choose Files
                     </button>
                     <div class="upload-status" id="newsFileStatus"></div>
                 </div>
